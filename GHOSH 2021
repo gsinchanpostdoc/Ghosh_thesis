@@ -1,0 +1,110 @@
+function dydt = bee_model(t, y, Z, p)
+% y: current state [B; HP; HS; P]
+% Z: delayed state [B_tau; HP_tau; HS_tau; P_tau]
+
+B = y(1); HP = y(2); HS = y(3); P = y(4);
+HP_tau = Z(2);
+
+% Chick production rate
+b = p.b0 + p.hp * HP + p.hs * HS;
+
+dB = p.iB * B * (1 - B/p.Bmax) - p.eB * B + p.lambda_b * HP_tau + p.CB * p.alphaB * P * B;
+dHS = p.iS * HS * (1 - HS/p.HSmax) - p.eS * HS + p.lambda_S * HP_tau + p.CS * p.alphaS * P * HS;
+dHP = B * b - p.ep * HP - (p.lambda_b + p.lambda_S) * HP_tau + p.CP * p.alphaP * P * HP;
+dP = p.GP - p.DP * P - P * (p.CB * B + p.CP * HP + p.CS * HS);
+
+dydt = [dB; dHP; dHS; dP];
+end
+
+
+% Main simulation file for Ghosh et al. 2021 model
+clear; clc;
+
+% Define delay
+tau = 2;
+
+% Time span
+tspan = [0, 200];
+
+% Initial history (function)
+history = @(t)[1; 1; 1; 10]; % [B; HP; HS; P]
+
+% Define parameters (example values, adjust based on Table 1)
+params = struct(...
+    'iB', 0.05, 'iS', 0.04, ...
+    'eB', 0.03, 'eS', 0.03, 'ep', 0.04, ...
+    'lambda_b', 0.02, 'lambda_S', 0.03, ...
+    'b0', 3, 'hp', 0.02, 'hs', 0.015, ...
+    'CB', 0.3, 'CP', 0.2, 'CS', 0.25, ...
+    'alphaB', 0.4, 'alphaP', 0.35, 'alphaS', 0.38, ...
+    'GP', 5, 'DP', 0.1, ...
+    'Bmax', 10, 'HSmax', 10 ...
+);
+
+% Solve using DDE23
+sol = dde23(@(t,y,Z) bee_model(t,y,Z,params), tau, history, tspan);
+
+% Plot results
+figure;
+plot(sol.x, sol.y);
+legend('B (Breeders)','HP (Primary Helpers)','HS (Secondary Helpers)','P (Prey)');
+xlabel('Time');
+ylabel('Population Size');
+title('Baseline Dynamics');
+
+
+% Run a series of simulations varying hp and hs independently
+hp_values = 0:0.01:0.1;
+hs_values = 0:0.01:0.1;
+
+eq_sizes = zeros(length(hp_values), 2); % store total population at equilibrium
+
+for i = 1:length(hp_values)
+    p = params;
+    p.hp = hp_values(i);
+    sol = dde23(@(t,y,Z) bee_model(t,y,Z,p), tau, history, tspan);
+    final_vals = sol.y(:,end);
+    eq_sizes(i,1) = sum(final_vals(1:3)); % total bird pop
+end
+
+for i = 1:length(hs_values)
+    p = params;
+    p.hs = hs_values(i);
+    sol = dde23(@(t,y,Z) bee_model(t,y,Z,p), tau, history, tspan);
+    final_vals = sol.y(:,end);
+    eq_sizes(i,2) = sum(final_vals(1:3));
+end
+
+figure;
+plot(hp_values, eq_sizes(:,1), 'b', hs_values, eq_sizes(:,2), 'r--');
+legend('Varying h_p', 'Varying h_s');
+xlabel('Helping Rate');
+ylabel('Equilibrium Bird Population Size');
+title('Experiment 1: Dependence on Helping Rates');
+
+lambda_b_vals = 0:0.01:0.1;
+lambda_S_vals = 0:0.01:0.1;
+
+eq_sizes_b = zeros(length(lambda_b_vals), 1);
+eq_sizes_S = zeros(length(lambda_S_vals), 1);
+
+for i = 1:length(lambda_b_vals)
+    p = params;
+    p.lambda_b = lambda_b_vals(i);
+    sol = dde23(@(t,y,Z) bee_model(t,y,Z,p), tau, history, tspan);
+    eq_sizes_b(i) = sum(sol.y(1:3,end));
+end
+
+for i = 1:length(lambda_S_vals)
+    p = params;
+    p.lambda_S = lambda_S_vals(i);
+    sol = dde23(@(t,y,Z) bee_model(t,y,Z,p), tau, history, tspan);
+    eq_sizes_S(i) = sum(sol.y(1:3,end));
+end
+
+figure;
+plot(lambda_b_vals, eq_sizes_b, 'g', lambda_S_vals, eq_sizes_S, 'm--');
+legend('Varying \lambda_b', 'Varying \lambda_S');
+xlabel('Maturation Rate');
+ylabel('Equilibrium Bird Population Size');
+title('Experiment 2: Compensation by Secondary Helpers');
