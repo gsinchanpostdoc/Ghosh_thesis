@@ -1,0 +1,1646 @@
+---
+title: "Nesting success modelling"
+author: "Sinchan Ghosh, Arnab Banerjee, Soumalya Mukhopadhyay, Sabyasachi Bhattacharya"
+date: "28/01/2022"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#Package loading
+```{r}
+library(keras)
+library(mlbench)
+library(dplyr)
+library(magrittr)
+library(neuralnet)
+library(NeuralNetTools)
+library(plotly)
+library(matrixStats)
+library(boot)
+library(plyr)
+library(GGally)
+library(ggbiplot)
+```
+
+#All data reading
+```{r}
+setwd("G:/Sinchan Ghosh/Nesting success and cooperation")
+getwd()
+n_dataab <- read.csv("nestingsocio.csv",header = T)
+names(n_dataab)
+rownames(n_dataab)=c("A","B","C","D","E","F","G","H")
+```
+## Data subsets
+```{r}
+newdfab1=subset(n_dataab,select = -c(P.F.,P.H.,P.M.,P.N.))
+newdfab2=subset(n_dataab,select = -c(P.F.,P.H.,P.M.,P.F.S.M.H..S_F))
+newdfab3=subset(n_dataab,select = -c(P.F.,P.H.,P.N.,P.F.S.M.H..S_F))
+newdfab4=subset(n_dataab,select = -c(P.F.,P.M.,P.N.,P.F.S.M.H..S_F))
+newdfab5=subset(n_dataab,select = -c(P.H.,P.M.,P.N.,P.F.S.M.H..S_F))
+newdfab1%<>% mutate_if(is.factor, as.numeric)
+newdfab2%<>% mutate_if(is.factor, as.numeric)
+newdfab3%<>% mutate_if(is.factor, as.numeric)
+newdfab4%<>% mutate_if(is.factor, as.numeric)
+newdfab5%<>% mutate_if(is.factor, as.numeric)
+names(newdfab1)
+```
+## Correlation pairwise
+###All
+```{r}
+ggcorr(n_dataab, method = c("everything", "pearson"),label = F,
+       digits = 5,geom = "tile",label_alpha = F,
+       legend.position = "top",palette = "PuOr",angle=-45, size = 2,
+       hjust = 1, nbreak=8
+      ,layout.exp = 4)
+
+
+```
+###Success with all biotic
+```{r}
+names(n_dataab)
+ggcorr(n_dataab[,c(15:22,24:28)], method = c("everything", "pearson"),label = T,
+       digits = 5,geom = "circle",label_alpha = F,
+       legend.position = "top",angle=-45, size = 2,
+       hjust = 1,
+       nbreaks = 10,layout.exp = 3)
+
+
+```
+
+
+#Biotic Variable set
+##For reproductive success
+*Except Homoptera all are correlated*
+Principal components
+```{r}
+bio_rep=subset(n_dataab,select = c(Lepidoptera,Ant,Wasp,Bee,Damselfly,Dragonfly))
+rownames(bio_rep)=c("A","B","C","D","E","F","G","H")
+colnames(bio_rep)=c("Lepidoptera","Ant","Wasp","Bee","Damselfly","Dragonfly")
+PC_bio_r=prcomp(bio_rep,scale. = T)
+ggbiplot(pcobj = PC_bio_r,choices =1:2,obs.scale = 1, var.scale = 1, 
+         ellipse = TRUE, ellipse.prob = 1,
+         circle = TRUE,alpha = 0.5,
+         circle.prob = 0.5,varname.size =5,
+         varname.adjust = 2,labels =rownames(bio_rep),labels.size = 2.5 )
+bio_r_pc=PC_bio_r$x[,c(1,2)]
+bio_r_pc
+
+```
+## For Nesting, mating, and fledging 
+
+Principal components
+```{r}
+bio_nmf=subset(n_dataab,select = c(Lepidoptera,Damselfly,Dragonfly))
+rownames(bio_nmf)=c("A","B","C","D","E","F","G","H")
+PC_bio_nmf=prcomp(bio_nmf,scale. = T)
+ggbiplot(pcobj = PC_bio_nmf,choices =1:2,obs.scale = 1, var.scale = 1, 
+         ellipse = TRUE, ellipse.prob = 1,
+         circle = TRUE,alpha = 0.5,
+         circle.prob = 0.5,varname.size =5,
+         varname.adjust = 2,labels =rownames(bio_nmf),labels.size = 2.5 )
+bio_n_pc=bio_m_pc=bio_f_pc=PC_bio_nmf$x[,c(1,2)]
+bio_n_pc;bio_m_pc;bio_f_pc
+```
+## For Hatching 
+
+Principal components
+```{r}
+bio_h=subset(n_dataab,select = c(Lepidoptera,Bee,Damselfly,Dragonfly))
+rownames(bio_h)=c("A","B","C","D","E","F","G","H")
+PC_bio_h=prcomp(bio_h,scale. = T)
+ggbiplot(pcobj = PC_bio_h,choices =1:2,obs.scale = 0.5, var.scale = 0.5, 
+         ellipse = TRUE, ellipse.prob = 1,
+         circle = TRUE,alpha = 0.5,
+         circle.prob = 0.5,varname.size =5,
+         varname.adjust = 3,labels =rownames(bio_h),labels.size = 2 )
+bio_h_pc=PC_bio_h$x[,c(1,2)]
+bio_h_pc
+
+```
+#Abiotic variable set
+##For reproductive success
+
+```{r}
+names(n_dataab)
+abio=n_dataab[,c(1:14)]
+rownames(abio)=c("A","B","C","D","E","F","G","H")
+colnames(abio)=c("pH","Electrical conductivity","Iron","Aluminium","Carbon","Nitrogen","Calcium","Potassium","Sodium","Magnesium","Cation exchange capacity","Sand","Silt","Clay")
+abio_rep=subset(abio,select=c(Carbon,Nitrogen))
+PC_abio_r=prcomp(abio_rep,scale. = T)
+ggbiplot(pcobj = PC_abio_r,choices =1:2,obs.scale = 0.5, var.scale = 1, 
+         ellipse = TRUE, ellipse.prob = 1,
+         circle = TRUE,alpha = 0.5,
+         circle.prob = 0.5,varname.size =5,
+         varname.adjust = 2,labels =rownames(abio_rep),labels.size = 2.5 )
+abio_r_pc=PC_abio_r$x[,c(1,2)]
+abio_r_pc
+
+```
+##for Nesting
+```{r}
+abio_n=subset(abio,select = c(Clay, Sand, Magnesium, Carbon, Nitrogen, Iron,pH))
+PC_abio_n=prcomp(abio_n,scale. = T)
+ggbiplot(pcobj = PC_abio_n,choices =1:2,obs.scale = 0.5, var.scale = 1, 
+         ellipse = TRUE, ellipse.prob = 1,
+         circle = TRUE,alpha = 0.5,
+         circle.prob = 0.5,varname.size =5,
+         varname.adjust = 2,labels =rownames(abio_n),labels.size = 5 )
+abio_n_pc=PC_abio_n$x[,c(1,2)]
+abio_n_pc
+
+```
+
+##for Mating
+```{r}
+abio_m=subset(abio,select = c(Clay, Sand, Magnesium, Carbon,pH))
+PC_abio_m=prcomp(abio_m,scale. = T)
+ggbiplot(pcobj = PC_abio_m,choices =1:2,obs.scale = 0.2, var.scale = 1, 
+         ellipse = TRUE, ellipse.prob = 1,
+         circle = TRUE,alpha = 0.5,
+         circle.prob = 0.5,varname.size =5,
+         varname.adjust = 2,labels =rownames(abio_m),labels.size = 5 )
+abio_m_pc=PC_abio_m$x[,c(1,2)]
+abio_m_pc
+```
+##for Hatching
+```{r}
+abio_h=subset(abio,select = c(Clay, Sand, Magnesium, Carbon, Nitrogen, pH))
+PC_abio_h=prcomp(abio_h,scale. = T)
+ggbiplot(pcobj = PC_abio_h,choices =1:2,obs.scale = 0.2, var.scale = 1, 
+         ellipse = TRUE, ellipse.prob = 1,
+         circle = TRUE,alpha = 0.5,
+         circle.prob = 0.5,varname.size =5,
+         varname.adjust = 2,labels =rownames(abio_h),labels.size = 5 )
+abio_h_pc=PC_abio_h$x[,c(1,2)]
+abio_h_pc
+```
+##for Fledging
+```{r}
+abio_f=subset(abio,select = c(Clay, Magnesium, Carbon, Nitrogen, pH))
+PC_abio_f=prcomp(abio_f,scale. = T)
+ggbiplot(pcobj = PC_abio_f,choices =1:2,obs.scale = 0.2, var.scale = 1, 
+         ellipse = TRUE, ellipse.prob = 1,
+         circle = TRUE,alpha = 0.5,
+         circle.prob = 0.5,varname.size =5,
+         varname.adjust = 2,labels =rownames(abio_f),labels.size = 5 )
+abio_f_pc=PC_abio_f$x[,c(1,2)]
+abio_f_pc
+```
+
+#All predictor principal component
+##reproductive
+```{r}
+names(newdfab1)
+colnames(newdfab1)=c("pH","Electrical conductivity","Iron","Aluminium","Carbon","Nitrogen","Calcium","Potassium","Sodium","Magnesium","Cation exchange capacity","Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera","Lepidoptera","Breeder : Helper","Reproductive success")
+
+all_r=subset(newdfab1,select = c(Lepidoptera,Ant,Wasp,Bee,Damselfly,Dragonfly,Carbon,Nitrogen, `Breeder : Helper`))
+PC_all_r=prcomp(all_r,scale. = T)
+ggbiplot(pcobj = PC_all_r,choices =1:2,obs.scale = 0.5, var.scale = 1, 
+         ellipse = TRUE, ellipse.prob =1,
+         circle = TRUE,alpha = 0.5,
+         circle.prob = 0.5,varname.size =3.5,
+         varname.adjust = 2,labels =rownames(all_r),labels.size = 5 )
+all_r_pc=PC_all_r$x[,c(1,2)]
+all_r_pc
+
+```
+
+##nesting
+```{r}
+colnames(newdfab2)=c("pH","Electrical conductivity","Iron","Aluminium","Carbon","Nitrogen","Calcium","Potassium","Sodium","Magnesium","Cation exchange capacity","Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera","Lepidoptera","Breeder : Helper","Nesting success")
+
+all_n=subset(newdfab2,select = c(Lepidoptera,Damselfly,Dragonfly,Clay, Sand, Magnesium, Carbon, Nitrogen, Iron,pH, `Breeder : Helper`))
+PC_all_n=prcomp(all_n,scale. = T)
+ggbiplot(pcobj = PC_all_n,choices =1:2,obs.scale = 0.4, var.scale = 1, 
+         ellipse = TRUE, ellipse.prob =1,
+         circle = TRUE,alpha = 0.5,
+         circle.prob = 0.5,varname.size =3.5,
+         varname.adjust = 3,labels =rownames(all_n),labels.size = 5 )
+all_n_pc=PC_all_n$x[,c(1,2)]
+all_n_pc
+```
+##mating
+```{r}
+colnames(newdfab3)=c("pH","Electrical conductivity","Iron","Aluminium","Carbon","Nitrogen","Calcium","Potassium","Sodium","Magnesium","Cation exchange capacity","Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera","Lepidoptera","Breeder : Helper","Mating success")
+
+all_m=subset(newdfab2,select = c(Lepidoptera,Damselfly,Dragonfly,
+                                 Clay, Sand, Magnesium, Carbon,pH, `Breeder : Helper`))
+PC_all_m=prcomp(all_m,scale. = T)
+ggbiplot(pcobj = PC_all_m,choices =1:2,obs.scale = 0.4, var.scale = 1, 
+         ellipse = TRUE, ellipse.prob =1,
+         circle = TRUE,alpha = 0.5,
+         circle.prob = 0.5,varname.size =3.5,
+         varname.adjust = 3,labels =rownames(all_m),labels.size = 5 )
+all_m_pc=PC_all_m$x[,c(1,2)]
+all_m_pc
+
+```
+##hatching
+```{r}
+colnames(newdfab4)=c("pH","Electrical conductivity","Iron","Aluminium","Carbon","Nitrogen","Calcium","Potassium","Sodium","Magnesium","Cation exchange capacity","Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera","Lepidoptera","Breeder : Helper","Hatching success")
+
+all_h=subset(newdfab4,select = c(Lepidoptera,Bee,Damselfly,Dragonfly,
+                                 Clay, Sand, Magnesium, Carbon, Nitrogen, pH, `Breeder : Helper`))
+PC_all_h=prcomp(all_h,scale. = T)
+ggbiplot(pcobj = PC_all_h,choices =1:2,obs.scale = 0.4, var.scale = 1, 
+         ellipse = TRUE, ellipse.prob =1,
+         circle = TRUE,alpha = 0.5,
+         circle.prob = 0.5,varname.size =3.5,
+         varname.adjust = 3,labels =rownames(all_h),labels.size = 5 )
+all_h_pc=PC_all_h$x[,c(1,2)]
+all_h_pc
+
+```
+##fledging
+```{r}
+colnames(newdfab5)=c("pH","Electrical conductivity","Iron","Aluminium","Carbon","Nitrogen","Calcium","Potassium","Sodium","Magnesium","Cation exchange capacity","Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera","Lepidoptera","Breeder : Helper","Fledging success")
+
+all_f=subset(newdfab5,select = c(Lepidoptera,Damselfly,Dragonfly,
+                                 Clay, Magnesium, Carbon, Nitrogen, pH, `Breeder : Helper`))
+PC_all_f=prcomp(all_f,scale. = T)
+ggbiplot(pcobj = PC_all_f,choices =1:2,obs.scale = 0.4, var.scale = 1, 
+         ellipse = TRUE, ellipse.prob =1,
+         circle = TRUE,alpha = 0.5,
+         circle.prob = 0.5,varname.size =3.5,
+         varname.adjust = 3,labels =rownames(all_f),labels.size = 5 )
+all_f_pc=PC_all_f$x[,c(1,2)]
+all_f_pc
+
+
+```
+#Linear regression with principal component
+##All
+###reproductive
+```{r}
+
+fit_all_r=lm(newdfab1$`Reproductive success`~all_r_pc[,1])
+summary(fit_all_r)
+RMSE_all_r=mean(fit_all_r$residuals^2);RMSE_all_r
+```
+###nesting
+```{r}
+
+fit_all_n=lm(newdfab2$`Nesting success`~all_n_pc[,1])
+summary(fit_all_n)
+RMSE_all_n=mean(fit_all_n$residuals^2);RMSE_all_n
+```
+###mating
+```{r}
+
+fit_all_m=lm(newdfab3$`Mating success`~all_m_pc[,1])
+summary(fit_all_m)
+RMSE_all_m=mean(fit_all_m$residuals^2);RMSE_all_m
+```
+###hatching
+```{r}
+
+fit_all_h=lm(newdfab4$`Hatching success`~all_h_pc[,1])
+summary(fit_all_h)
+RMSE_all_h=mean(fit_all_h$residuals^2);RMSE_all_h
+```
+###fledging
+```{r}
+
+fit_all_f=lm(newdfab5$`Fledging success`~all_f_pc[,1])
+summary(fit_all_f)
+RMSE_all_f=mean(fit_all_f$residuals^2);RMSE_all_f
+```
+##Abiotic
+```{r}
+
+fit_abio_r=lm(newdfab1$`Reproductive success`~abio_r_pc[,1])
+summary(fit_abio_r)
+RMSE_abio_r=mean(fit_abio_r$residuals^2);RMSE_abio_r
+```
+###nesting
+```{r}
+
+fit_abio_n=lm(newdfab2$`Nesting success`~abio_n_pc[,1])
+summary(fit_abio_n)
+RMSE_abio_n=mean(fit_abio_n$residuals^2);RMSE_abio_n
+```
+###mating
+```{r}
+
+fit_abio_m=lm(newdfab3$`Mating success`~abio_m_pc[,1])
+summary(fit_abio_m)
+RMSE_abio_m=mean(fit_abio_m$residuals^2);RMSE_abio_m
+```
+###hatching
+```{r}
+
+fit_abio_h=lm(newdfab4$`Hatching success`~abio_h_pc[,1])
+summary(fit_abio_h)
+RMSE_abio_h=mean(fit_abio_h$residuals^2);RMSE_abio_h
+```
+###fledging
+```{r}
+
+fit_abio_f=lm(newdfab5$`Fledging success`~abio_f_pc[,1])
+summary(fit_abio_f)
+RMSE_abio_f=mean(fit_abio_f$residuals^2);RMSE_abio_f
+```
+##Biotic
+###reproductive
+```{r}
+
+fit_bio_r=lm(newdfab1$`Reproductive success`~bio_r_pc[,1])
+summary(fit_bio_r)
+RMSE_bio_r=mean(fit_bio_r$residuals^2);RMSE_bio_r
+```
+###nesting
+```{r}
+
+fit_bio_n=lm(newdfab2$`Nesting success`~bio_n_pc[,1])
+summary(fit_bio_n)
+RMSE_bio_n=mean(fit_bio_n$residuals^2);RMSE_bio_n
+```
+###mating
+```{r}
+
+fit_bio_m=lm(newdfab3$`Mating success`~bio_m_pc[,1])
+summary(fit_bio_m)
+RMSE_bio_m=mean(fit_bio_m$residuals^2);RMSE_bio_m
+```
+###hatching
+```{r}
+
+fit_bio_h=lm(newdfab4$`Hatching success`~bio_h_pc[,1])
+summary(fit_bio_h)
+RMSE_bio_h=mean(fit_bio_h$residuals^2);RMSE_bio_h
+```
+###fledging
+```{r}
+
+fit_bio_f=lm(newdfab5$`Fledging success`~bio_f_pc[,1])
+summary(fit_bio_f)
+RMSE_bio_f=mean(fit_bio_f$residuals^2);RMSE_bio_f
+```
+#ANN-L with significant factors only
+##All
+###Reproductive
+```{r}
+all_r$r_s=newdfab1$`Reproductive success`
+names(all_r)
+all_r_new=subset(all_r,select = -c(`Breeder : Helper`))
+all_r_new$ratio=all_r$`Breeder : Helper`
+######r_s
+set.seed(5)
+samplesize = 0.70 * nrow(all_r_new)
+indexab1 <- sample( seq_len ( nrow ( all_r_new ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(all_r_new , 2 , max)#2 indicates column
+minab1 = apply(all_r_new, 2 , min)
+scaledab1= as.data.frame(scale(all_r_new, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=9#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+        for (j in l2) {
+                NNab1=neuralnet(formula =r_s~Lepidoptera+Ant+Wasp+Bee+Damselfly+Dragonfly+Carbon+Nitrogen+ratio
+                                ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = T,rep = 500)
+                predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(9)])
+                predict_reultNNab1 = (predict_testNNab1$net.result * (max(all_r_new$r_s)
+                                                                      - min(all_r_new$r_s))) + min(all_r_new$r_s)
+                predict_reultNNab1
+                #plot(testN1$r_s, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+                
+                oriab1=testNab1$r_s
+                RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+                RMSE.NNab1[i,j]
+        }
+        
+}
+#names(testNab1)
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_all_r_l=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_all_r_l
+```
+###NESTING
+```{r}
+all_n$r_s=newdfab2$`Nesting success`
+names(all_n)
+all_n_new=subset(all_n,select = -c(`Breeder : Helper`))
+all_n_new$ratio=all_n$`Breeder : Helper`
+######r_s
+set.seed(5)
+samplesize = 0.70 * nrow(all_n_new)
+indexab1 <- sample( seq_len ( nrow ( all_n_new ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(all_n_new , 2 , max)#2 indicates column
+minab1 = apply(all_n_new, 2 , min)
+scaledab1= as.data.frame(scale(all_n_new, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=9#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+        for (j in l2) {
+                NNab1=neuralnet(formula =r_s~Lepidoptera+Damselfly+Dragonfly+Clay+Sand+Magnesium+Carbon+Nitrogen+Iron+pH+ratio
+                                ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = T,rep = 500)
+                predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(9)])
+                predict_reultNNab1 = (predict_testNNab1$net.result * (max(all_n_new$r_s)
+                                                                      - min(all_n_new$r_s))) + min(all_n_new$r_s)
+                predict_reultNNab1
+                #plot(testN1$r_s, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+                
+                oriab1=testNab1$r_s
+                RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+                RMSE.NNab1[i,j]
+        }
+        
+}
+#names(testNab1)
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_all_n_l=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_all_n_l
+
+```
+###Mating
+```{r}
+all_m$r_s=newdfab3$`Mating success`
+names(all_m)
+all_m_new=subset(all_m,select = -c(`Breeder : Helper`))
+all_m_new$ratio=all_m$`Breeder : Helper`
+######r_s
+set.seed(5)
+samplesize = 0.70 * nrow(all_m_new)
+indexab1 <- sample( seq_len ( nrow ( all_m_new ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(all_m_new , 2 , max)#2 indicates column
+minab1 = apply(all_m_new, 2 , min)
+scaledab1= as.data.frame(scale(all_m_new, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=9#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+        for (j in l2) {
+                NNab1=neuralnet(formula =r_s~Lepidoptera+Damselfly+Dragonfly+
+                                Clay+Sand+Magnesium+Carbon+pH+ratio
+                                ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = T,rep = 500)
+                predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(9)])
+                predict_reultNNab1 = (predict_testNNab1$net.result * (max(all_m_new$r_s)
+                                                                      - min(all_m_new$r_s))) + min(all_m_new$r_s)
+                predict_reultNNab1
+                #plot(testN1$r_s, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+                
+                oriab1=testNab1$r_s
+                RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+                RMSE.NNab1[i,j]
+        }
+        
+}
+#names(testNab1)
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_all_m_l=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_all_m_l
+
+```
+
+###Hatching
+```{r}
+all_h$r_s=newdfab4$`Hatching success`
+names(all_h)
+all_h_new=subset(all_h,select = -c(`Breeder : Helper`))
+all_h_new$ratio=all_h$`Breeder : Helper`
+######r_s
+set.seed(5)
+samplesize = 0.70 * nrow(all_h_new)
+indexab1 <- sample( seq_len ( nrow ( all_h_new ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(all_h_new , 2 , max)#2 indicates column
+minab1 = apply(all_h_new, 2 , min)
+scaledab1= as.data.frame(scale(all_h_new, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=ncol(trainNNab1)#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+        for (j in l2) {
+                NNab1=neuralnet(formula =r_s~Lepidoptera+Bee+Damselfly+Dragonfly+Clay+Sand+Magnesium+Carbon+Nitrogen+pH+ratio,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = T,rep = 10)
+                predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(12)])
+                predict_reultNNab1 = (predict_testNNab1$net.result * (max(all_h_new$r_s)
+                                                                      - min(all_h_new$r_s))) + min(all_h_new$r_s)
+                predict_reultNNab1
+                #plot(testN1$r_s, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+                
+                oriab1=testNab1$r_s
+                RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+                RMSE.NNab1[i,j]
+        }
+        
+}
+#names(testNab1)
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_all_h_l=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_all_h_l
+
+```
+
+###Fledging
+```{r}
+
+all_f$r_s=newdfab5$`Fledging success`
+names(all_f)
+all_f_new=subset(all_f,select = -c(`Breeder : Helper`))
+all_f_new$ratio=all_f$`Breeder : Helper`
+######r_s
+set.seed(5)
+samplesize = 0.70 * nrow(all_f_new)
+indexab1 <- sample( seq_len ( nrow ( all_f_new ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(all_f_new , 2 , max)#2 indicates column
+minab1 = apply(all_f_new, 2 , min)
+scaledab1= as.data.frame(scale(all_f_new, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=ncol(trainNNab1)#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+        for (j in l2) {
+                NNab1=neuralnet(formula =r_s~Lepidoptera+Damselfly+Dragonfly+
+                                        Clay+Magnesium+Carbon+Nitrogen+pH+ratio
+                                ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = T,rep = 10)
+                predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(9)])
+                predict_reultNNab1 = (predict_testNNab1$net.result * (max(all_f_new$r_s)
+                                                                      - min(all_f_new$r_s))) + min(all_f_new$r_s)
+                predict_reultNNab1
+                #plot(testN1$r_s, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+                
+                oriab1=testNab1$r_s
+                RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+                RMSE.NNab1[i,j]
+        }
+        
+}
+#names(testNab1)
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_all_f_l=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_all_f_l
+
+```
+#ANN-NL with significan factors
+##All
+###Repro
+```{r}
+all_r$r_s=newdfab1$`Reproductive success`
+names(all_r)
+all_r_new=subset(all_r,select = -c(`Breeder : Helper`))
+all_r_new$ratio=all_r$`Breeder : Helper`
+######r_s
+set.seed(5)
+samplesize = 0.70 * nrow(all_r_new)
+indexab1 <- sample( seq_len ( nrow ( all_r_new ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(all_r_new , 2 , max)#2 indicates column
+minab1 = apply(all_r_new, 2 , min)
+scaledab1= as.data.frame(scale(all_r_new, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=9#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+        for (j in l2) {
+                NNab1=neuralnet(formula =r_s~Lepidoptera+Ant+Wasp+Bee+Damselfly+Dragonfly+Carbon+Nitrogen+ratio
+                                ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = T,rep = 500)
+                predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(9)])
+                predict_reultNNab1 = (predict_testNNab1$net.result * (max(all_r_new$r_s)
+                                                                      - min(all_r_new$r_s))) + min(all_r_new$r_s)
+                predict_reultNNab1
+                #plot(testN1$r_s, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+                
+                oriab1=testNab1$r_s
+                RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+                RMSE.NNab1[i,j]
+        }
+        
+}
+#names(testNab1)
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_all_r_nl=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_all_r_nl
+
+
+```
+###Nesting
+```{r}
+all_n$r_s=newdfab2$`Nesting success`
+names(all_n)
+all_n_new=subset(all_n,select = -c(`Breeder : Helper`))
+all_n_new$ratio=all_n$`Breeder : Helper`
+######r_s
+set.seed(5)
+samplesize = 0.70 * nrow(all_n_new)
+indexab1 <- sample( seq_len ( nrow ( all_n_new ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(all_n_new , 2 , max)#2 indicates column
+minab1 = apply(all_n_new, 2 , min)
+scaledab1= as.data.frame(scale(all_n_new, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=9#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+        for (j in l2) {
+                NNab1=neuralnet(formula =r_s~Lepidoptera+Damselfly+Dragonfly+Clay+Sand+Magnesium+Carbon+Nitrogen+Iron+pH+ratio
+                                ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = F,rep = 500)
+                predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(9)])
+                predict_reultNNab1 = (predict_testNNab1$net.result * (max(all_n_new$r_s)
+                                                                      - min(all_n_new$r_s))) + min(all_n_new$r_s)
+                predict_reultNNab1
+                #plot(testN1$r_s, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+                
+                oriab1=testNab1$r_s
+                RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+                RMSE.NNab1[i,j]
+        }
+        
+}
+#names(testNab1)
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_all_n_nl=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_all_n_nl
+
+
+```
+###Mating
+```{r}
+all_m$r_s=newdfab3$`Mating success`
+names(all_m)
+all_m_new=subset(all_m,select = -c(`Breeder : Helper`))
+all_m_new$ratio=all_m$`Breeder : Helper`
+######r_s
+set.seed(5)
+samplesize = 0.70 * nrow(all_m_new)
+indexab1 <- sample( seq_len ( nrow ( all_m_new ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(all_m_new , 2 , max)#2 indicates column
+minab1 = apply(all_m_new, 2 , min)
+scaledab1= as.data.frame(scale(all_m_new, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=9#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+        for (j in l2) {
+                NNab1=neuralnet(formula =r_s~Lepidoptera+Damselfly+Dragonfly+
+                                        Clay+Sand+Magnesium+Carbon+pH+ratio
+                                ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = F,rep = 50)
+                predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(9)])
+                predict_reultNNab1 = (predict_testNNab1$net.result * (max(all_m_new$r_s)
+                                                                      - min(all_m_new$r_s))) + min(all_m_new$r_s)
+                predict_reultNNab1
+                #plot(testN1$r_s, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+                
+                oriab1=testNab1$r_s
+                RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+                RMSE.NNab1[i,j]
+        }
+        
+}
+#names(testNab1)
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_all_m_nl=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_all_m_nl
+
+```
+
+###hatching
+```{r}
+all_h$r_s=newdfab4$`Hatching success`
+names(all_h)
+all_h_new=subset(all_h,select = -c(`Breeder : Helper`))
+all_h_new$ratio=all_h$`Breeder : Helper`
+######r_s
+set.seed(5)
+samplesize = 0.70 * nrow(all_h_new)
+indexab1 <- sample( seq_len ( nrow ( all_h_new ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(all_h_new , 2 , max)#2 indicates column
+minab1 = apply(all_h_new, 2 , min)
+scaledab1= as.data.frame(scale(all_h_new, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=ncol(trainNNab1)#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+        for (j in l2) {
+                NNab1=neuralnet(formula =r_s~Lepidoptera+Bee+Damselfly+Dragonfly+
+                                        Clay+Sand+Magnesium+Carbon+Nitrogen+pH+ratio
+                                ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = F,rep = 50)
+                predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(11)])
+                predict_reultNNab1 = (predict_testNNab1$net.result * (max(all_h_new$r_s)
+                                                                      - min(all_h_new$r_s))) + min(all_h_new$r_s)
+                predict_reultNNab1
+                #plot(testN1$r_s, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+                
+                oriab1=testNab1$r_s
+                RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+                RMSE.NNab1[i,j]
+        }
+        
+}
+#names(testNab1)
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_all_h_nl=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_all_h_nl
+
+```
+
+###fledging
+```{r}
+
+all_f$r_s=newdfab5$`Fledging success`
+names(all_f)
+all_f_new=subset(all_f,select = -c(`Breeder : Helper`))
+all_f_new$ratio=all_f$`Breeder : Helper`
+######r_s
+set.seed(5)
+samplesize = 0.70 * nrow(all_f_new)
+indexab1 <- sample( seq_len ( nrow ( all_f_new ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(all_f_new , 2 , max)#2 indicates column
+minab1 = apply(all_f_new, 2 , min)
+scaledab1= as.data.frame(scale(all_f_new, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=ncol(trainNNab1)#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+        for (j in l2) {
+                NNab1=neuralnet(formula =r_s~Lepidoptera+Damselfly+Dragonfly+
+                                        Clay+Magnesium+Carbon+Nitrogen+pH+ratio
+                                ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = F,rep = 500)
+                predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(9)])
+                predict_reultNNab1 = (predict_testNNab1$net.result * (max(all_f_new$r_s)
+                                                                      - min(all_f_new$r_s))) + min(all_f_new$r_s)
+                predict_reultNNab1
+                #plot(testN1$r_s, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+                
+                oriab1=testNab1$r_s
+                RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+                RMSE.NNab1[i,j]
+        }
+        
+}
+#names(testNab1)
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_all_f_nl=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_all_f_nl
+```
+#ANN-L with all factors
+##Reproductive
+```{r}
+names(newdfab1)=c("pH","EC","Fe","Al" ,"C" ,"N","Ca","K","Na","Mg","CEC",
+                  "Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera",
+                  "Lepidoptera","socio","R_S")
+
+names(newdfab1)
+######R_S
+set.seed(5)
+samplesize = 0.70 * nrow(newdfab1)
+indexab1 <- sample( seq_len ( nrow ( newdfab1 ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(newdfab1 , 2 , max)#2 indicates column
+minab1 = apply(newdfab1, 2 , min)
+scaledab1= as.data.frame(scale(newdfab1, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=23#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+  for (j in l2) {
+    NNab1=neuralnet(formula =R_S~pH+EC+Fe+Al+C+N+Ca+K+Na+Mg+CEC+Sand+Silt+Clay+
+                      Dragonfly+Damselfly+Homoptera+Bee+Wasp+Ant+Orthoptera+Lepidoptera+socio
+                    ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = T,rep = 500)
+    predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(24)])
+    predict_reultNNab1 = (predict_testNNab1$net.result * (max(newdfab1$R_S)
+                                                          - min(newdfab1$R_S))) + min(newdfab1$R_S)
+    predict_reultNNab1
+    #plot(testN1$R_S, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+    
+    oriab1=testNab1$R_S
+    RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+    RMSE.NNab1[i,j]
+  }
+  
+}
+
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_socio_r_l=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_socio_r_l
+
+
+
+```
+##Nesting
+```{r}
+names(newdfab2)=c("pH","EC","Fe","Al" ,"C" ,"N","Ca","K","Na","Mg","CEC",
+                  "Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera",
+                  "Lepidoptera","socio","R_S")
+
+
+######R_S
+set.seed(5)
+samplesize = 0.70 * nrow(newdfab2)
+indexab1 <- sample( seq_len ( nrow ( newdfab2 ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(newdfab2 , 2 , max)#2 indicates column
+minab1 = apply(newdfab2, 2 , min)
+scaledab1= as.data.frame(scale(newdfab2, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=23#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+  for (j in l2) {
+    NNab1=neuralnet(formula =R_S~pH+EC+Fe+Al+C+N+Ca+K+Na+Mg+CEC+Sand+Silt+Clay+
+                      Dragonfly+Damselfly+Homoptera+Bee+Wasp+Ant+Orthoptera+Lepidoptera+socio
+                    ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = T,rep = 500)
+    predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(24)])
+    predict_reultNNab1 = (predict_testNNab1$net.result * (max(newdfab2$R_S)
+                                                          - min(newdfab2$R_S))) + min(newdfab2$R_S)
+    predict_reultNNab1
+    #plot(testN1$R_S, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+    
+    oriab1=testNab1$R_S
+    RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+    RMSE.NNab1[i,j]
+  }
+  
+}
+
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_socio_n_l=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_socio_n_l
+
+```
+##Mating
+```{r}
+names(newdfab3)=c("pH","EC","Fe","Al" ,"C" ,"N","Ca","K","Na","Mg","CEC",
+                  "Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera",
+                  "Lepidoptera","socio","R_S")
+
+
+######R_S
+set.seed(5)
+samplesize = 0.70 * nrow(newdfab3)
+indexab1 <- sample( seq_len ( nrow ( newdfab3 ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(newdfab3 , 2 , max)#2 indicates column
+minab1 = apply(newdfab3, 2 , min)
+scaledab1= as.data.frame(scale(newdfab3, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=23#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+  for (j in l2) {
+    NNab1=neuralnet(formula =R_S~pH+EC+Fe+Al+C+N+Ca+K+Na+Mg+CEC+Sand+Silt+Clay+
+                      Dragonfly+Damselfly+Homoptera+Bee+Wasp+Ant+Orthoptera+Lepidoptera+socio
+                    ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = T,rep = 500)
+    predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(24)])
+    predict_reultNNab1 = (predict_testNNab1$net.result * (max(newdfab3$R_S)
+                                                          - min(newdfab3$R_S))) + min(newdfab3$R_S)
+    predict_reultNNab1
+    #plot(testN1$R_S, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+    
+    oriab1=testNab1$R_S
+    RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+    RMSE.NNab1[i,j]
+  }
+  
+}
+
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_socio_m_l=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_socio_m_l
+
+```
+##Hatching
+```{r}
+names(newdfab4)=c("pH","EC","Fe","Al" ,"C" ,"N","Ca","K","Na","Mg","CEC",
+                  "Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera",
+                  "Lepidoptera","socio","R_S")
+
+
+######R_S
+set.seed(5)
+samplesize = 0.70 * nrow(newdfab4)
+indexab1 <- sample( seq_len ( nrow ( newdfab4 ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(newdfab4 , 2 , max)#2 indicates column
+minab1 = apply(newdfab4, 2 , min)
+scaledab1= as.data.frame(scale(newdfab4, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=23#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+  for (j in l2) {
+    NNab1=neuralnet(formula =R_S~pH+EC+Fe+Al+C+N+Ca+K+Na+Mg+CEC+Sand+Silt+Clay+
+                      Dragonfly+Damselfly+Homoptera+Bee+Wasp+Ant+Orthoptera+Lepidoptera+socio
+                    ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = T,rep = 500)
+    predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(24)])
+    predict_reultNNab1 = (predict_testNNab1$net.result * (max(newdfab4$R_S)
+                                                          - min(newdfab4$R_S))) + min(newdfab4$R_S)
+    predict_reultNNab1
+    #plot(testN1$R_S, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+    
+    oriab1=testNab1$R_S
+    RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+    RMSE.NNab1[i,j]
+  }
+  
+}
+
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_socio_h_l=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_socio_h_l
+
+
+```
+##Fledging
+```{r}
+names(newdfab5)=c("pH","EC","Fe","Al" ,"C" ,"N","Ca","K","Na","Mg","CEC",
+                  "Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera",
+                  "Lepidoptera","socio","R_S")
+
+
+######R_S
+set.seed(5)
+samplesize = 0.70 * nrow(newdfab5)
+indexab1 <- sample( seq_len ( nrow ( newdfab5 ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(newdfab5 , 2 , max)#2 indicates column
+minab1 = apply(newdfab5, 2 , min)
+scaledab1= as.data.frame(scale(newdfab5, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=23#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+  for (j in l2) {
+    NNab1=neuralnet(formula =R_S~pH+EC+Fe+Al+C+N+Ca+K+Na+Mg+CEC+Sand+Silt+Clay+
+                      Dragonfly+Damselfly+Homoptera+Bee+Wasp+Ant+Orthoptera+Lepidoptera+socio
+                    ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = T,rep = 500)
+    predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(24)])
+    predict_reultNNab1 = (predict_testNNab1$net.result * (max(newdfab5$R_S)
+                                                          - min(newdfab5$R_S))) + min(newdfab5$R_S)
+    predict_reultNNab1
+    #plot(testN1$R_S, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+    
+    oriab1=testNab1$R_S
+    RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+    RMSE.NNab1[i,j]
+  }
+  
+}
+
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_socio_f_l=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_socio_f_l
+
+
+```
+#ANN-NL with all factors
+##Reproductive
+```{r}
+names(newdfab1)=c("pH","EC","Fe","Al" ,"C" ,"N","Ca","K","Na","Mg","CEC",
+                  "Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera",
+                  "Lepidoptera","socio","R_S")
+
+names(newdfab1)
+######R_S
+set.seed(5)
+samplesize = 0.70 * nrow(newdfab1)
+indexab1 <- sample( seq_len ( nrow ( newdfab1 ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(newdfab1 , 2 , max)#2 indicates column
+minab1 = apply(newdfab1, 2 , min)
+scaledab1= as.data.frame(scale(newdfab1, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=23#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+  for (j in l2) {
+    NNab1=neuralnet(formula =R_S~pH+EC+Fe+Al+C+N+Ca+K+Na+Mg+CEC+Sand+Silt+Clay+
+                      Dragonfly+Damselfly+Homoptera+Bee+Wasp+Ant+Orthoptera+Lepidoptera+socio
+                    ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = F,rep = 500)
+    predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(24)])
+    predict_reultNNab1 = (predict_testNNab1$net.result * (max(newdfab1$R_S)
+                                                          - min(newdfab1$R_S))) + min(newdfab1$R_S)
+    predict_reultNNab1
+    #plot(testN1$R_S, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+    
+    oriab1=testNab1$R_S
+    RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+    RMSE.NNab1[i,j]
+  }
+  
+}
+
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_socio_r_nl=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_socio_r_nl
+
+
+
+```
+##Nesting
+```{r}
+names(newdfab2)=c("pH","EC","Fe","Al" ,"C" ,"N","Ca","K","Na","Mg","CEC",
+                  "Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera",
+                  "Lepidoptera","socio","R_S")
+
+
+######R_S
+set.seed(5)
+samplesize = 0.70 * nrow(newdfab2)
+indexab1 <- sample( seq_len ( nrow ( newdfab2 ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(newdfab2 , 2 , max)#2 indicates column
+minab1 = apply(newdfab2, 2 , min)
+scaledab1= as.data.frame(scale(newdfab2, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=23#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+  for (j in l2) {
+    NNab1=neuralnet(formula =R_S~pH+EC+Fe+Al+C+N+Ca+K+Na+Mg+CEC+Sand+Silt+Clay+
+                      Dragonfly+Damselfly+Homoptera+Bee+Wasp+Ant+Orthoptera+Lepidoptera+socio
+                    ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = F,rep = 500)
+    predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(24)])
+    predict_reultNNab1 = (predict_testNNab1$net.result * (max(newdfab2$R_S)
+                                                          - min(newdfab2$R_S))) + min(newdfab2$R_S)
+    predict_reultNNab1
+    #plot(testN1$R_S, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+    
+    oriab1=testNab1$R_S
+    RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+    RMSE.NNab1[i,j]
+  }
+  
+}
+
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_socio_n_nl=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_socio_n_nl
+
+```
+##Mating
+```{r}
+names(newdfab3)=c("pH","EC","Fe","Al" ,"C" ,"N","Ca","K","Na","Mg","CEC",
+                  "Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera",
+                  "Lepidoptera","socio","R_S")
+
+
+######R_S
+set.seed(5)
+samplesize = 0.70 * nrow(newdfab3)
+indexab1 <- sample( seq_len ( nrow ( newdfab3 ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(newdfab3 , 2 , max)#2 indicates column
+minab1 = apply(newdfab3, 2 , min)
+scaledab1= as.data.frame(scale(newdfab3, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=23#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+  for (j in l2) {
+    NNab1=neuralnet(formula =R_S~pH+EC+Fe+Al+C+N+Ca+K+Na+Mg+CEC+Sand+Silt+Clay+
+                      Dragonfly+Damselfly+Homoptera+Bee+Wasp+Ant+Orthoptera+Lepidoptera+socio
+                    ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = F,rep = 500)
+    predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(24)])
+    predict_reultNNab1 = (predict_testNNab1$net.result * (max(newdfab3$R_S)
+                                                          - min(newdfab3$R_S))) + min(newdfab3$R_S)
+    predict_reultNNab1
+    #plot(testN1$R_S, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+    
+    oriab1=testNab1$R_S
+    RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+    RMSE.NNab1[i,j]
+  }
+  
+}
+
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_socio_m_nl=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_socio_m_nl
+
+```
+##Hatching
+```{r}
+names(newdfab4)=c("pH","EC","Fe","Al" ,"C" ,"N","Ca","K","Na","Mg","CEC",
+                  "Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera",
+                  "Lepidoptera","socio","R_S")
+
+
+######R_S
+set.seed(5)
+samplesize = 0.70 * nrow(newdfab4)
+indexab1 <- sample( seq_len ( nrow ( newdfab4 ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(newdfab4 , 2 , max)#2 indicates column
+minab1 = apply(newdfab4, 2 , min)
+scaledab1= as.data.frame(scale(newdfab4, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=23#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+  for (j in l2) {
+    NNab1=neuralnet(formula =R_S~pH+EC+Fe+Al+C+N+Ca+K+Na+Mg+CEC+Sand+Silt+Clay+
+                      Dragonfly+Damselfly+Homoptera+Bee+Wasp+Ant+Orthoptera+Lepidoptera+socio
+                    ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = F,rep = 500)
+    predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(24)])
+    predict_reultNNab1 = (predict_testNNab1$net.result * (max(newdfab4$R_S)
+                                                          - min(newdfab4$R_S))) + min(newdfab4$R_S)
+    predict_reultNNab1
+    #plot(testN1$R_S, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+    
+    oriab1=testNab1$R_S
+    RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+    RMSE.NNab1[i,j]
+  }
+  
+}
+
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_socio_h_nl=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_socio_h_nl
+
+
+```
+##Fledging
+```{r}
+names(newdfab5)=c("pH","EC","Fe","Al" ,"C" ,"N","Ca","K","Na","Mg","CEC",
+                  "Sand","Silt","Clay","Dragonfly","Damselfly","Homoptera","Bee","Wasp","Ant","Orthoptera",
+                  "Lepidoptera","socio","R_S")
+
+
+######R_S
+set.seed(5)
+samplesize = 0.70 * nrow(newdfab5)
+indexab1 <- sample( seq_len ( nrow ( newdfab5 ) ), size = samplesize )
+indexab1
+
+maxab1 = apply(newdfab5 , 2 , max)#2 indicates column
+minab1 = apply(newdfab5, 2 , min)
+scaledab1= as.data.frame(scale(newdfab5, center = minab1, scale = maxab1 - minab1))
+
+trainNNab1= scaledab1[indexab1 , ]
+testNab1 = scaledab1[-indexab1 , ]
+
+dim(trainNNab1)
+names(trainNNab1)
+#number of hidden nodes for 2 layered
+m1=1;n1=23#m1=output #n1 = input # Huang (2003)
+a1=round(sqrt((m1+2)*n1)+2*sqrt(n1/(m1+2)))#number of hidden nodes for first layer
+a1
+b1=round(m1*sqrt(n1/(m1+2)))#number of hidden nodes for second layer
+b1
+l1=seq(1,a1)#number of nodes
+l2=seq(1,b1)#number of layers
+RMSE.NNab1=matrix(data=NA,nrow = a1,ncol = b1)
+l1;l2
+names(trainNNab1)
+#plot(NNab1)
+for (i in l1) {
+  for (j in l2) {
+    NNab1=neuralnet(formula =R_S~pH+EC+Fe+Al+C+N+Ca+K+Na+Mg+CEC+Sand+Silt+Clay+
+                      Dragonfly+Damselfly+Homoptera+Bee+Wasp+Ant+Orthoptera+Lepidoptera+socio
+                    ,data = trainNNab1, hidden = c(l1[i],l2[j]), linear.output = F,rep = 500)
+    predict_testNNab1 = neuralnet::compute(NNab1, testNab1[,-c(24)])
+    predict_reultNNab1 = (predict_testNNab1$net.result * (max(newdfab5$R_S)
+                                                          - min(newdfab5$R_S))) + min(newdfab5$R_S)
+    predict_reultNNab1
+    #plot(testN1$R_S, predict_reultNN, col='blue', pch=16, ylab = "Predicted Conditional fledging success NN", xlab = "Observed Conditional fledging success NN")
+    
+    oriab1=testNab1$R_S
+    RMSE.NNab1[i,j] = (sum((oriab1 - predict_reultNNab1)^2) / nrow(testNab1)) ^ 0.5
+    RMSE.NNab1[i,j]
+  }
+  
+}
+
+dim(RMSE.NNab1)
+NNab1_RMSE_layer=plot_ly(x=~l2,y=~l1,z=~RMSE.NNab1,type = 'contour')
+NNab1_RMSE_layer;RMSE.NNab2_socio_f_nl=min(RMSE.NNab1)
+#Select the nodes per layer with least RMSE by moving the cursor in viewer of R
+RMSE.NNab2_socio_f_nl
+
+
+```
+
+#Comarison of models
+##Linear models
+```{r}
+Modelnames=c("Reproductive success (PC: all correlated)",
+             "Nesting success (PC: all correlated)",
+             "Mating success (PC: all correlated)",
+             "Hatching success (PC: all correlated)",
+             "Fledging success (PC: all correlated)",
+             "Reproductive success (PC: all correlated abiotic)",
+             "Nesting success (PC: all correlated abiotic)",
+             "Mating success (PC: all correlated abiotic)",
+             "Hatching success (PC: all correlated abiotic)",
+             "Fledging success (PC: all correlated abiotic)",
+             "Reproductive success (PC: all correlated biotic)",
+             "Nesting success (PC: all correlated biotic)",
+             "Mating success (PC: all correlated biotic)",
+             "Hatching success (PC: all correlated biotic)",
+             "Fledging success (PC: all correlated biotic)")
+cl1=c("#990F0F","#99540F","#6B990F","#0F6B99","#260F99",
+      "#990F0F","#99540F","#6B990F","#0F6B99","#260F99",
+      "#990F0F","#99540F","#6B990F","#0F6B99","#260F99")
+RMSELM=c(RMSE_all_r,RMSE_all_n,RMSE_all_m,RMSE_all_h,RMSE_all_f,
+         RMSE_abio_r,RMSE_abio_n,RMSE_abio_m,RMSE_abio_h,RMSE_abio_f,
+         RMSE_bio_r,RMSE_bio_n,RMSE_bio_m,RMSE_bio_h,RMSE_bio_f)
+length(RMSELM)
+par( mar=c (20,2,1,1))
+barplot(RMSELM,col=cl1, names.arg=Modelnames,las=3,ylim=c(0,0.05), main="RMSE values of linear regressions with principal components")
+```
+##ANN
+```{r}
+ANNnames=c("Reproductive success (All prdeictors ANN-L)",
+             "Nesting success (All prdeictors ANN-L)",
+             "Mating success (All prdeictors ANN-L)",
+             "Hatching success (All prdeictors ANN-L)",
+             "Fledging success (All prdeictors ANN-L)",
+             "Reproductive success (All prdeictors ANN-NL)",
+             "Nesting success (All prdeictors ANN-NL)",
+             "Mating success (All prdeictors ANN-NL)",
+             "Hatching success (All prdeictors ANN-NL)",
+             "Fledging success (All prdeictors ANN-NL)",
+             "Reproductive success (All correlated prdeictors ANN-L)",
+             "Nesting success (All correlated prdeictors ANN-L)",
+             "Mating success (All correlated prdeictors ANN-L)",
+             "Hatching success (All correlated prdeictors ANN-L)",
+             "Fledging success (All correlated prdeictors ANN-L)",
+             "Reproductive success (All correlated prdeictors ANN-NL)",
+             "Nesting success (All correlated prdeictors ANN-NL)",
+             "Mating success (All correlated prdeictors ANN-NL)",
+             "Hatching success (All correlated prdeictors ANN-NL)",
+             "Fledging success (All correlated prdeictors ANN-NL)")
+RMSEANN=c(RMSE.NNab2_socio_r_l,
+          RMSE.NNab2_socio_n_l,
+          RMSE.NNab2_socio_m_l,
+          RMSE.NNab2_socio_h_l,
+          RMSE.NNab2_socio_f_l,
+          RMSE.NNab2_socio_r_nl,
+          RMSE.NNab2_socio_n_nl,
+          RMSE.NNab2_socio_m_nl,
+          RMSE.NNab2_socio_h_nl,
+          RMSE.NNab2_socio_f_nl,
+          RMSE.NNab2_all_r_l,
+          RMSE.NNab2_all_n_l,
+          RMSE.NNab2_all_m_l,
+          RMSE.NNab2_all_h_l,
+          RMSE.NNab2_all_f_l,
+          RMSE.NNab2_all_r_nl,
+          RMSE.NNab2_all_n_nl,
+          RMSE.NNab2_all_m_nl,
+          RMSE.NNab2_all_h_nl,
+          RMSE.NNab2_all_f_nl)
+cl2=c("#990F0F","#99540F","#6B990F","#0F6B99","#260F99",
+      "#990F0F","#99540F","#6B990F","#0F6B99","#260F99",
+      "#990F0F","#99540F","#6B990F","#0F6B99","#260F99",
+      "#990F0F","#99540F","#6B990F","#0F6B99","#260F99")
+par( mar=c (20,2,1,1))
+barplot(RMSEANN,col=cl2, names.arg=ANNnames,las=3,ylim=c(0,.6), main="RMSE values of ANNs with maximum number of predictors")
+
+```
+
+
